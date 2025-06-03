@@ -71,45 +71,41 @@ jobs:
         username: ${{ secrets.EC2_USERNAME }}
         key: ${{ secrets.EC2_SSH_KEY }}
         port: 22
+        command_timeout: 5m
         script: |
           cd /var/www/trello
           
           # Install serve if not exists
-          sudo npm install -g serve pm2
+          sudo npm install -g serve pm2 || echo "Already installed"
           
-          # Stop existing PM2 processes
-          pm2 delete trello-app || echo "No existing PM2 process"
-          pm2 kill || echo "PM2 not running"
+          # Stop existing PM2 processes quickly
+          pm2 delete all || echo "No processes to delete"
           
-          # Create simple PM2 config
-          cat > ecosystem.config.js << 'EOF'
-          module.exports = {
-            apps: [{
-              name: 'trello-app',
-              script: 'serve',
-              args: '-s . -l 3000',
-              cwd: '/var/www/trello',
-              instances: 1,
-              autorestart: true,
-              watch: false,
-              max_memory_restart: '1G',
-              env: {
-                NODE_ENV: 'production',
-                PORT: 3000
-              }
-            }]
-          }
-          EOF
+          # Start app directly with PM2
+          pm2 start serve --name trello-app -- -s . -l 3000
           
-          # Start with PM2 directly (not systemd)
-          pm2 start ecosystem.config.js
+          # Save PM2 config
           pm2 save
-          pm2 startup
           
-          # Check PM2 status
+          # Check if running
           pm2 list
-          pm2 logs --lines 10
           
-          # Test if app is running
-          sleep 5
-          curl -f http://localhost:3000 || echo "App not responding" 
+          # Quick test
+          sleep 3
+          curl -f http://localhost:3000 > /dev/null && echo "✅ App is running!" || echo "❌ App failed to start"
+          
+    - name: Health Check
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 22
+        command_timeout: 30s
+        script: |
+          # Final health check
+          echo "🔍 Checking application status..."
+          pm2 list
+          
+          # Test external access
+          curl -f http://localhost:3000 > /dev/null && echo "✅ Application is healthy!" || echo "❌ Health check failed" 

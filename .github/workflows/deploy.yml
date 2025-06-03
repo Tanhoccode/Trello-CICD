@@ -74,10 +74,42 @@ jobs:
         script: |
           cd /var/www/trello
           
-          # Start the application
-          sudo systemctl start trello-app
-          sudo systemctl enable trello-app
+          # Install serve if not exists
+          sudo npm install -g serve pm2
           
-          # Check if application is running
+          # Stop existing PM2 processes
+          pm2 delete trello-app || echo "No existing PM2 process"
+          pm2 kill || echo "PM2 not running"
+          
+          # Create simple PM2 config
+          cat > ecosystem.config.js << 'EOF'
+          module.exports = {
+            apps: [{
+              name: 'trello-app',
+              script: 'serve',
+              args: '-s . -l 3000',
+              cwd: '/var/www/trello',
+              instances: 1,
+              autorestart: true,
+              watch: false,
+              max_memory_restart: '1G',
+              env: {
+                NODE_ENV: 'production',
+                PORT: 3000
+              }
+            }]
+          }
+          EOF
+          
+          # Start with PM2 directly (not systemd)
+          pm2 start ecosystem.config.js
+          pm2 save
+          pm2 startup
+          
+          # Check PM2 status
+          pm2 list
+          pm2 logs --lines 10
+          
+          # Test if app is running
           sleep 5
-          sudo systemctl status trello-app 
+          curl -f http://localhost:3000 || echo "App not responding" 

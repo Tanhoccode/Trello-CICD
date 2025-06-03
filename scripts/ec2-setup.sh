@@ -15,32 +15,12 @@ sudo apt-get install -y nodejs
 # Install Nginx
 sudo apt install nginx -y
 
-# Install PM2 for process management
-sudo npm install -g pm2
+# Install PM2 and serve globally
+sudo npm install -g pm2 serve
 
 # Create application directory
 sudo mkdir -p /var/www/trello
 sudo chown $USER:$USER /var/www/trello
-
-# Create PM2 ecosystem file
-cat > /var/www/trello/ecosystem.config.js << 'EOF'
-module.exports = {
-  apps: [{
-    name: 'trello-app',
-    script: 'npx',
-    args: 'serve -s . -l 3000',
-    cwd: '/var/www/trello',
-    instances: 1,
-    autorestart: true,
-    watch: false,
-    max_memory_restart: '1G',
-    env: {
-      NODE_ENV: 'production',
-      PORT: 3000
-    }
-  }]
-}
-EOF
 
 # Create Nginx configuration
 sudo tee /etc/nginx/sites-available/trello << 'EOF'
@@ -71,31 +51,9 @@ sudo nginx -t
 sudo systemctl restart nginx
 sudo systemctl enable nginx
 
-# Create systemd service for the app
-sudo tee /etc/systemd/system/trello-app.service << 'EOF'
-[Unit]
-Description=Trello Application
-After=network.target
-
-[Service]
-Type=forking
-User=ubuntu
-WorkingDirectory=/var/www/trello
-ExecStart=/usr/bin/pm2 start ecosystem.config.js --no-daemon
-ExecReload=/usr/bin/pm2 reload ecosystem.config.js
-ExecStop=/usr/bin/pm2 delete trello-app
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# Reload systemd and enable service
-sudo systemctl daemon-reload
-sudo systemctl enable trello-app
-
-# Install serve package globally for serving static files
-sudo npm install -g serve
+# Setup PM2 startup
+pm2 startup
+echo "Run the command above if prompted!"
 
 # Setup firewall
 sudo ufw allow 22
@@ -107,4 +65,5 @@ echo "✅ EC2 setup completed!"
 echo "📝 Next steps:"
 echo "1. Add GitHub Secrets to your repository"
 echo "2. Push code to trigger deployment"
-echo "3. Access your app at: http://13.212.128.157" 
+echo "3. Access your app at: http://13.212.128.157"
+echo "4. Run 'pm2 startup' command if prompted" 

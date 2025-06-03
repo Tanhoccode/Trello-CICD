@@ -1,0 +1,83 @@
+name: Deploy to AWS EC2
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.16.0'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run lint
+      run: npm run lint
+      
+    - name: Build application
+      run: npm run build
+      
+    - name: Create deployment package
+      run: |
+        mkdir -p deploy
+        cp -r dist/* deploy/
+        cp package.json deploy/
+        
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@v1.0.0 
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 22
+        script: |
+          # Stop existing application
+          sudo systemctl stop trello-app || echo "Service not running"
+          
+          # Backup current deployment
+          sudo rm -rf /var/www/trello-backup
+          sudo mv /var/www/trello /var/www/trello-backup 2>/dev/null || echo "No previous deployment"
+          
+          # Create new deployment directory
+          sudo mkdir -p /var/www/trello
+          sudo chown $USER:$USER /var/www/trello
+          
+    - name: Copy files to EC2
+      uses: appleboy/scp-action@v0.1.4
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        source: "deploy/*"
+        target: "/var/www/trello/"
+        strip_components: 1
+        
+    - name: Start application on EC2
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 22
+        script: |
+          cd /var/www/trello
+          
+          # Start the application
+          sudo systemctl start trello-app
+          sudo systemctl enable trello-app
+          
+          # Check if application is running
+          sleep 5
+          sudo systemctl status trello-app 

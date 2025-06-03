@@ -37,8 +37,38 @@ function AppBar() {
       <Box sx = {{ display : 'flex', alignItems : 'center', gap : 2 }}>
         <AppsIcon sx = {{ color: 'white' }} />
         <Box sx = {{ display : 'flex', alignItems : 'center', gap : 0.5 }}>
-          <SvgIcon component={TrelloIcon} fontSize = 'small' inheritViewBox sx = {{ color: 'white' }} />
-          <Typography variant='span' sx={{ fontSize: '1.2rem', fontWeight : 'bold', color: 'white' }}> TanNe </Typography>
+          <SvgIcon 
+            component={TrelloIcon} 
+            fontSize = 'small' 
+            inheritViewBox 
+            sx = {{ 
+              color: 'white',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                color: '#FFD700',
+                transform: 'scale(1.1)',
+                filter: 'drop-shadow(0 0 8px rgba(255, 215, 0, 0.6))'
+              }
+            }} 
+          />
+          <Typography 
+            variant='span' 
+            sx={{ 
+              fontSize: '1.2rem', 
+              fontWeight : 'bold', 
+              color: 'white',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                color: '#FFD700',
+                transform: 'scale(1.05)',
+                textShadow: '0 0 8px rgba(255, 215, 0, 0.6)'
+              }
+            }}
+          > 
+            TanNe 
+          </Typography>
         </Box>
         <Box sx = {{ display: { xs : 'none', md : 'flex' }, gap : 1 }}>
           <Workspaces/>

@@ -78,20 +78,28 @@ jobs:
           # Install serve if not exists
           sudo npm install -g serve pm2 || echo "Already installed"
           
-          # Stop existing PM2 processes quickly
-          pm2 delete all || echo "No processes to delete"
+          # Graceful restart - start new process first
+          pm2 start "npx serve -s . -l 3001" --name trello-app-new || echo "New app started"
           
-          # Start app directly with PM2
-          pm2 start serve --name trello-app -- -s . -l 3000
+          # Wait for new app to be ready
+          sleep 10
+          for i in {1..30}; do
+            if curl -f http://localhost:3001 > /dev/null 2>&1; then
+              echo "✅ New app is ready on port 3001"
+              break
+            fi
+            echo "⏳ Waiting for new app... ($i/30)"
+            sleep 2
+          done
           
-          # Save PM2 config
-          pm2 save
+          # Stop old app and switch ports
+          pm2 delete trello-app || echo "No old app to delete"
+          pm2 stop trello-app-new || echo "New app already stopped"
+          pm2 start "npx serve -s . -l 3000" --name trello-app
+          pm2 delete trello-app-new || echo "Cleanup done"
           
-          # Check if running
-          pm2 list
-          
-          # Quick test
-          sleep 3
+          # Final health check
+          sleep 5
           curl -f http://localhost:3000 > /dev/null && echo "✅ App is running!" || echo "❌ App failed to start"
           
     - name: Health Check
